@@ -1,0 +1,24 @@
+name: Publish runtime component
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download and verify runtime
+        shell: pwsh
+        env:
+          ARTIFACT_URL: ${{ secrets.COMPONENT_ARTIFACT_URL }}
+        run: |
+          try { Invoke-WebRequest $env:ARTIFACT_URL -OutFile artifact.zip } catch { throw 'Component transfer failed' }
+          Expand-Archive artifact.zip -DestinationPath component
+          $file = 'component/AgentCustomer-Runtime.exe'
+          if ((Get-FileHash $file).Hash.ToLowerInvariant() -ne '7d1433cbdfb13054990b0d0fb36bebb6623304df47e21c6b9b6124a3475fd07d') { throw 'Component checksum mismatch' }
+      - name: Upload public download component
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v1.1.0-test.20261117 component/AgentCustomer-Runtime.exe --repo junsheng-z/pdd-customer-downloads --clobber
